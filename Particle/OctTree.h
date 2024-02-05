@@ -16,27 +16,30 @@ class Cell {
                 _to(to) {
         }
 
-        constexpr void addNextDepth(std::vector<Cell>& cellList, uint16_t depth) {
-            if (!isLeaf()) {
-                for (Cell* c : _children) {
-                    c->addNextDepth(cellList, depth);
-                }
-            } else {
-                const Position half_cell((_to - _from) / 2);
-                const Position center(half_cell + _from);
-                const Position along_x(half_cell.x, 0.0, 0.0);
-                const Position along_y(0.0, half_cell.y, 0.0);
-                const Position along_z(0.0, 0.0, half_cell.z);
+        constexpr void initializeChildren() {
+            const Position half_cell((_to - _from) / 2);
+            const Position center(half_cell + _from);
+            const Position along_x(half_cell.x, 0.0, 0.0);
+            const Position along_y(0.0, half_cell.y, 0.0);
+            const Position along_z(0.0, 0.0, half_cell.z);
 
-                _children[0] = &cellList.emplace_back(_from, center);
-                _children[1] = &cellList.emplace_back(_from + along_x, center + along_x);
-                _children[2] = &cellList.emplace_back(_from + along_y, center + along_y);
-                _children[3] = &cellList.emplace_back(_from + along_z, center + along_z);
-                _children[4] = &cellList.emplace_back(_from + along_x + along_y, center + along_x + along_y);
-                _children[5] = &cellList.emplace_back(_from + along_x + along_z, center + along_x + along_z);
-                _children[6] = &cellList.emplace_back(_from + along_y + along_z, center + along_y + along_z);
-                _children[7] = &cellList.emplace_back(center, _to);
-            }
+            // Order important, index to find child is calculated
+            _children[0] = new Cell(_from, center);
+            _children[1] = new Cell(_from + along_x, center + along_x);
+            _children[2] = new Cell(_from + along_y, center + along_y);
+            _children[3] = new Cell(_from + along_x + along_y, center + along_x + along_y);
+            _children[4] = new Cell(_from + along_z, center + along_z);
+            _children[5] = new Cell(_from + along_x + along_z, center + along_x + along_z);
+            _children[6] = new Cell(_from + along_y + along_z, center + along_y + along_z);
+            _children[7] = new Cell(center, _to);
+        }
+
+        Cell* getChild(const Position& pos) {
+            const Position relativeParticlePos = pos - _from;
+            const Position relativeCellTo = (_to - _from) / 2;
+            const Position coords = relativeParticlePos / relativeCellTo; // x, y, z [0;2[,[0;2[,[0;2[
+            const int index = static_cast<int>(coords.x) + (static_cast<int>(coords.y) * 2) + (static_cast<int>(coords.z) * 4);
+            return _children[index];
         }
 
         constexpr Position centerOfMass() const {
@@ -44,24 +47,26 @@ class Cell {
         }
 
         constexpr bool isLeaf() const {
-            return _children[0] == nullptr;
+            return _children.front() == nullptr;
         }
 
-        constexpr void insertParticle(const Particle& p) {
-            _mass += p.mass;
-            _accumulatedCenterOfMass += p.position * p.mass;
+        constexpr void insert(const Position& pos, double mass) {
+            if (isLeaf()) {
+                if (_mass != 0.0) {
+                    initializeChildren();
 
-            if (!isLeaf()) {
-                for (Cell* cell : _children) {
-                    if (cell->isInCell(p.position)) {
-                        cell->insertParticle(p);
-                        break;
-                    }
+                    getChild(pos)->insert(pos, mass);
+                    getChild(centerOfMass())->insert(centerOfMass(), mass);
                 }
+            } else {
+                getChild(pos)->insert(pos, mass);
             }
+
+            _mass += mass;
+            _accumulatedCenterOfMass += pos * mass;
         }
 
-        void computeAttraction(Particle& p) const {
+        void computeAcceleration(Particle& p) const {
             constexpr double G = 0.001;
 
             const Vector3d delta = centerOfMass() - p.position;
@@ -77,11 +82,6 @@ class Cell {
 #endif
         }
 
-        constexpr void resetCalculations() {
-            _mass = 0.0;
-            _accumulatedCenterOfMass = Position(0.0, 0.0, 0.0);
-        }
-
         constexpr double influence(const Position& p) const {
             // return (_to.x - _from.x) / math::distance(centerOfMass(), p);
             return (_to.x - _from.x) * math::invsqrtQuake((centerOfMass() - p).lengthSquared()); // worth?
@@ -93,7 +93,7 @@ class Cell {
             }
 
             if (isLeaf() or (influence(p.position) < _influenceThreshold)) {
-                computeAttraction(p);
+                computeAcceleration(p);
             } else {
                 for (Cell* c : _children) {
                     c->calculateAcceleration(p);
@@ -112,6 +112,17 @@ class Cell {
             return std::format("[From: {}, To: {}, CenterOfMass: {}, Mass: {}]", _from.toString(), _to.toString(), centerOfMass().toString(), _mass);
         }
 
+        void removeChildren() {
+            for (int i = 0; i < 8; i++) {
+                delete _children[i];
+                _children[i] = nullptr;
+            }
+        }
+
+        ~Cell() {
+            removeChildren();
+        }
+
     private:
         static constexpr double _influenceThreshold = 0.5; // 0.5 is common value across multiple papers
 
@@ -125,45 +136,29 @@ class Cell {
 
 class OctTree {
     public:
-        OctTree(const Position& from, const Position& to, int depth) {
-            _cellList.reserve(numberOfNodes(depth));
-            std::print(std::cout, "Start creating OctTree with {} nodes\n", _cellList.capacity());
-            _cellList.emplace_back(from, to);
-            for (int i = 1; i < depth; i++) {
-                _cellList.front().addNextDepth(_cellList, i);
-            }
-            std::print(std::cout, "Finished creating OctTree\nSmallest cell is {} wide\n", std::abs((from - to).x) / std::pow(2, depth - 1));
+        OctTree(const Position& from, const Position& to) :
+                _cell(from, to) {
         }
 
         constexpr void insertParticles(const std::vector<Particle>& particles) {
             for (const Particle& p : particles) {
 #if defined(_DEBUG)
-                if (!_cellList.front().isInCell(p.position)) {
+                if (!_cell.isInCell(p.position)) {
                     throw std::runtime_error(std::format("Particle not in OctTree: {}", p.position.toString()));
                 }
 #endif
-                _cellList.front().insertParticle(p);
+                _cell.insert(p.position, p.mass);
             }
         }
 
         constexpr void calculateAcceleration(Particle& p) const {
-            _cellList.front().calculateAcceleration(p);
+            _cell.calculateAcceleration(p);
         }
 
-        constexpr void resetCalculation() {
-            for (Cell& c : _cellList) {
-                c.resetCalculations();
-            }
+        void resetCalculation() {
+            _cell.removeChildren();
         }
 
     private:
-        std::vector<Cell> _cellList;
-
-        constexpr size_t numberOfNodes(int depth) const {
-            size_t sum = 0;
-            for (int i = 0; i < depth; i++) {
-                sum += std::pow(8, i);
-            }
-            return sum;
-        }
+        Cell _cell;
 };

@@ -152,6 +152,11 @@ constexpr Vector3<T0> operator/(const Vector3<T0>& a, T1 b) {
     return {a.x / b, a.y / b, a.z / b};
 }
 
+template <typename T0>
+constexpr Vector3<T0> operator/(const Vector3<T0>& a, const Vector3<T0>& b) {
+    return {a.x / b.x, a.y / b.y, a.z / b.z};
+}
+
 using Vector3i = Vector3<int>;
 using Vector3d = Vector3<double>;
 using Position = Vector3d;

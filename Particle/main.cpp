@@ -14,7 +14,7 @@
 
 void run_showcase() {
     constexpr size_t particleCount = 10'000;
-    constexpr uint16_t windowWidth = 1000;
+    constexpr uint16_t windowWidth = 1'000;
     constexpr uint16_t spawnWidth = windowWidth / 1;
 
     Simulation sim(Vector2u(windowWidth, windowWidth));
@@ -73,8 +73,8 @@ void run_benchmark() {
     std::chrono::milliseconds sum(0), min(std::chrono::milliseconds::max()), max(std::chrono::milliseconds::min());
     for (int i = 0; i < benchmarkRounds; i++) {
         const auto startTime = std::chrono::high_resolution_clock::now();
-        sim.step_bruteForce();
-        // sim.step_barnesHut();
+        // sim.step_bruteForce();
+        sim.step_barnesHut();
         const auto endTime = std::chrono::high_resolution_clock::now();
         const auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(endTime - startTime);
 
@@ -94,8 +94,8 @@ void run_benchmark() {
 }
 
 int main() {
-    // run_benchmark();
-    run_showcase();
+    run_benchmark();
+    // run_showcase();
 }
 
 /*
@@ -103,7 +103,6 @@ int main() {
  *                  | Average time | Min round | Max round
  * Single thread    |      30948ms |   30603ms |   31551ms
  * Full multithread |       4383ms |    4214ms |    4719ms
- * Barnes-Hut d(8)  |        140ms |     123ms |     171ms
- *                  |        188ms |      68ms |     237ms   // Putting OctTree in linear memory
- *                  |        180ms |      65ms |     232ms   // With fast inverse square root?
+ * Barnes-Hut       |        574ms |     413ms |     728ms    // First naive implementation
+ *                  |        532ms |     369ms |     660ms    // Calculated child indices
  */

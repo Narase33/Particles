@@ -4,14 +4,13 @@
 
 #include <execution>
 
-
 class Simulation {
     public:
         Simulation(Vector2u windowSize) :
                 _camera(Position(windowSize.x, windowSize.y, 600), Vector2d(0.0, 0.0), 90),
                 _window(sf::VideoMode(windowSize.x, windowSize.y), "Particle"),
                 _pic(Vector2u(windowSize.x, windowSize.y)),
-                _octTree(Position(-windowSize.x * 2, -windowSize.x * 2, -windowSize.x * 2), Position(windowSize.x * 2, windowSize.x * 2, windowSize.x * 2), 8) {
+                _octTree(Position(-windowSize.x * 2, -windowSize.x * 2, -windowSize.x * 2), Position(windowSize.x * 2, windowSize.x * 2, windowSize.x * 2)) {
             _window.setPosition({200, 5});
         }
 
