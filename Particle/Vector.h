@@ -133,6 +133,11 @@ constexpr Vector3<T> operator+(const Vector3<T>& a, const Vector3<T>& b) {
 }
 
 template <typename T>
+constexpr Vector3<T> operator+(const Vector3<T>& a, T b) {
+    return {a.x + b, a.y + b, a.z + b};
+}
+
+template <typename T>
 constexpr Vector3<T> operator-(const Vector3<T>& a, const Vector3<T>& b) {
     return {a.x - b.x, a.y - b.y, a.z - b.z};
 }

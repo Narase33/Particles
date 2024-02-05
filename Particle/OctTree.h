@@ -36,8 +36,8 @@ class Cell {
 
         Cell* getChild(const Position& pos) {
             const Position relativeParticlePos = pos - _from;
-            const Position relativeCellTo = (_to - _from) / 2;
-            const Position coords = relativeParticlePos / relativeCellTo; // x, y, z [0;2[,[0;2[,[0;2[
+            const Position childCellSize = (_to - _from) / 2;
+            const Position coords = relativeParticlePos / childCellSize; // x, y, z [0;2[,[0;2[,[0;2[
             const int index = static_cast<int>(coords.x) + (static_cast<int>(coords.y) * 2) + (static_cast<int>(coords.z) * 4);
             return _children[index];
         }
@@ -69,7 +69,8 @@ class Cell {
         void computeAcceleration(Particle& p) const {
             constexpr double G = 0.001;
 
-            const Vector3d delta = centerOfMass() - p.position;
+            const Position _centerOfMass = centerOfMass();
+            const Vector3d delta = _centerOfMass - p.position;
             const double force = (G * p.mass * _mass) / (delta.x * delta.x + delta.y * delta.y + delta.z * delta.z + 1);
             const Vector3d acceleration = delta * force;
 

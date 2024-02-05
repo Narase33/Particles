@@ -33,9 +33,6 @@ void run_showcase() {
         sim.placeParticle(pos, Vector3d(0.0, 0.0, 0.0));
     }
     std::print(std::cout, "Placed {} particles\n", particleCount);
-
-    std::print(std::cout, "Start sinulation [press enter]");
-    std::cin.get();
     while (true) {
         const auto startTime = std::chrono::high_resolution_clock::now();
         // sim.step_bruteForce();
@@ -94,8 +91,8 @@ void run_benchmark() {
 }
 
 int main() {
-    run_benchmark();
-    // run_showcase();
+    // run_benchmark();
+    run_showcase();
 }
 
 /*
