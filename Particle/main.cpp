@@ -2,10 +2,6 @@
 //
 
 #include "Camera.h"
-#include "Grid.h"
-#include "OctTree.h"
-#include "Particle.h"
-#include "Picture.h"
 #include "Simulation.h"
 
 #include <chrono>
@@ -87,12 +83,12 @@ void run_benchmark() {
     std::print(std::cout, "Average time: {}\n", sum / benchmarkRounds);
     std::print(std::cout, "Min time: {}\n", min);
     std::print(std::cout, "Max time: {}\n", max);
-    std::print(std::cout, "{}, {}, {}, {}\n", sum, sum / benchmarkRounds, min, max);
+    std::print(std::cout, "{} | {} | {} | {}\n", sum, sum / benchmarkRounds, min, max);
 }
 
 int main() {
-    // run_benchmark();
-    run_showcase();
+    run_benchmark();
+    // run_showcase();
 }
 
 /*
@@ -102,4 +98,5 @@ int main() {
  * Full multithread |       4383ms |    4214ms |    4719ms
  * Barnes-Hut       |        574ms |     413ms |     728ms    // First naive implementation
  *                  |        532ms |     369ms |     660ms    // Calculated child indices
+ *                  |        491ms |     346ms |     633ms
  */

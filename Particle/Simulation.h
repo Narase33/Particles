@@ -1,6 +1,7 @@
 #pragma once
 
-#include "Particle.h"
+#include "BarnesHut.h"
+#include "Picture.h"
 
 #include <execution>
 
@@ -10,50 +11,50 @@ class Simulation {
                 _camera(Position(windowSize.x, windowSize.y, 600), Vector2d(0.0, 0.0), 90),
                 _window(sf::VideoMode(windowSize.x, windowSize.y), "Particle"),
                 _pic(Vector2u(windowSize.x, windowSize.y)),
-                _octTree(Position(-windowSize.x * 2, -windowSize.x * 2, -windowSize.x * 2), Position(windowSize.x * 2, windowSize.x * 2, windowSize.x * 2)) {
+                _barnesHut(Position(-windowSize.x * 2, -windowSize.x * 2, -windowSize.x * 2), Position(windowSize.x * 2, windowSize.x * 2, windowSize.x * 2)) {
             _window.setPosition({200, 5});
         }
 
         void step_bruteForce() {
             handleEvents();
 
-            _pic.fill(Color(0, 0, 0));
+            _pic.reset();
 
             std::for_each(std::execution::par_unseq, _particles.begin(), _particles.end(), [this](Particle& p) {
                 for (const Particle& other : _particles) {
-                    calculateAcceleration(p, other);
+                    p.accelerate(other.position, other.mass);
                 }
                 p.step();
             });
 
             for (const Particle& p : _particles) {
-                _pic.set(_camera.project(p.position));
+                _pic.setParticle(_camera.project(p.position));
             }
 
             _window.clear();
-            _pic.renderTo(_window);
+            _pic.render(_window);
             _window.display();
         }
 
         void step_barnesHut() {
             handleEvents();
 
-            _pic.fill(Color(0, 0, 0));
+            _pic.reset();
 
-            _octTree.resetCalculation();
-            _octTree.insertParticles(_particles);
+            _barnesHut.resetCalculation();
+            _barnesHut.insertParticles(_particles);
 
             std::for_each(std::execution::par_unseq, _particles.begin(), _particles.end(), [this](Particle& p) {
-                _octTree.calculateAcceleration(p);
+                _barnesHut.calculateAcceleration(p);
                 p.step();
             });
 
             for (const Particle& p : _particles) {
-                _pic.set(_camera.project(p.position));
+                _pic.setParticle(_camera.project(p.position));
             }
 
             _window.clear();
-            _pic.renderTo(_window);
+            _pic.render(_window);
             _window.display();
         }
 
@@ -63,7 +64,7 @@ class Simulation {
 
     private:
         std::vector<Particle> _particles;
-        OctTree _octTree;
+        BarnesHut _barnesHut;
 
         Camera _camera;
         sf::RenderWindow _window;
@@ -71,22 +72,6 @@ class Simulation {
 
         bool _inMouseMove = false;
         bool _inMouseRotation = false;
-
-        static void calculateAcceleration(Particle& p, const Particle& other) {
-            constexpr double G = 0.001;
-
-            const Vector3d delta = other.position - p.position;
-            const double force = (G * p.mass * other.mass) / (delta.x * delta.x + delta.y * delta.y + delta.z * delta.z + 1);
-            const Vector3d acceleration = delta * force;
-
-            p.acceleration += acceleration;
-
-#if defined(_DEBUG)
-            if (std::isnan(p.acceleration.x) or std::isnan(p.acceleration.y) or std::isnan(p.acceleration.z)) {
-                throw std::runtime_error("Is NAN");
-            }
-#endif
-        }
 
         void handleEvents() {
             static Vector2d oldMousePosition;
