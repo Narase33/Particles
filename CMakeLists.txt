@@ -2,8 +2,13 @@
 # and include sub-projects here.
 #
 cmake_minimum_required (VERSION 3.8)
+
+set (CMAKE_GENERATOR "Ninja")
+message("generator is set to ${CMAKE_GENERATOR}")
+
 set (CMAKE_LIBRARY_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR})
 set (CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR})
+set (CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
 project ("Particle")
 

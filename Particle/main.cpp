@@ -9,7 +9,7 @@
 #include <random>
 
 void run_showcase() {
-    constexpr size_t particleCount = 10'000;
+    constexpr size_t particleCount = 20'000;
     constexpr uint16_t windowWidth = 1'000;
     constexpr uint16_t spawnWidth = windowWidth / 1;
 
@@ -43,7 +43,7 @@ void run_showcase() {
 
 void run_benchmark() {
     constexpr size_t particleCount = 100'000;
-    constexpr uint16_t windowWidth = 1000;
+    constexpr uint16_t windowWidth = 1'000;
     constexpr uint16_t spawnWidth = windowWidth / 2;
     constexpr int benchmarkRounds = 1'000;
 
@@ -99,4 +99,5 @@ int main() {
  * Barnes-Hut       |        574ms |     413ms |     728ms    // First naive implementation
  *                  |        532ms |     369ms |     660ms    // Calculated child indices
  *                  |        491ms |     346ms |     633ms
+ *                  |        390ms |     256ms |     612ms    // Cells put into global vector
  */

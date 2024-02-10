@@ -5,6 +5,7 @@
 #include "utils.h"
 
 #include <array>
+#include <exception>
 #include <format>
 #include <iostream>
 #include <vector>
@@ -19,6 +20,10 @@ class Cell {
         }
 
         constexpr void initializeChildren() {
+            if (_cellList.capacity() < (_cellList.size() + 8)) {
+                throw std::length_error("");
+            }
+
             const Position half_cell((_to - _from) / 2);
             const Position center(half_cell + _from);
             const Position along_x(half_cell.x, 0.0, 0.0);
@@ -45,9 +50,15 @@ class Cell {
         Cell& getChild(const Position& pos) {
             const Position relativeParticlePos = pos - _from;
             const Vector3d childCellSize = (_to - _from) / 2;
-            const Position coords = relativeParticlePos / childCellSize; // x, y, z [0;2[,[0;2[,[0;2[
+            const Position coords = (relativeParticlePos / childCellSize); // x, y, z [0;2[,[0;2[,[0;2[
             const int index = static_cast<int>(coords.x) + (static_cast<int>(coords.y) * 2) + (static_cast<int>(coords.z) * 4);
-            return _cellList[_children[index]];
+            Cell& c = _cellList[_children[index]];
+#if defined(_DEBUG)
+            if (!c.isInCell(pos)) {
+                throw std::runtime_error("Particle not in Cell");
+            }
+#endif
+            return c;
         }
 
         constexpr Position centerOfMass() const {
@@ -59,6 +70,11 @@ class Cell {
         }
 
         constexpr void insert(Particle& p) {
+#if defined(_DEBUG)
+            if (!isInCell(p.position)) {
+                throw std::runtime_error("Particle not in Cell");
+            }
+#endif
             if (isLeaf()) {
                 if (_particle == nullptr) {
                     _particle = &p;
@@ -150,13 +166,26 @@ class BarnesHut {
         }
 
         constexpr void insertParticles(std::vector<Particle>& particles) {
+            if (Cell::_cellList.capacity() < (particles.size() * 2)) {
+                Cell::_cellList.reserve(particles.size() * 2);
+            }
+
             for (Particle& p : particles) {
+                if (Cell::_cellList.capacity() < (Cell::_cellList.size() + 8)) {
+                    reserveCellSpace();
+                }
+
 #if defined(_DEBUG)
                 if (!_cell.isInCell(p.position)) {
                     throw std::runtime_error(std::format("Particle not in OctTree: {}", p.position.toString()));
                 }
 #endif
-                _cell.insert(p);
+                try {
+                    _cell.insert(p);
+                } catch (std::length_error&) {
+                    reserveCellSpace();
+                    _cell.insert(p);
+                }
             }
         }
 
@@ -166,6 +195,11 @@ class BarnesHut {
 
         void resetCalculation() {
             Cell::_cellList.clear();
+            _cell.resetCalculation();
+        }
+
+        void reserveCellSpace() {
+            Cell::_cellList.reserve(Cell::_cellList.capacity() * 1.5);
         }
 
     private:
