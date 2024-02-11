@@ -66,7 +66,7 @@ set(MSVC_RELDEBUG_FLAGS
 )
 
 add_subdirectory("libs/SFML-2.5.1")
-add_executable (Particle "Particle/main.cpp" "Particle/BarnesHut.cpp")
+add_executable (Particle "Particle/main.cpp" )
 
 target_link_libraries(Particle
 	PRIVATE
@@ -86,3 +86,5 @@ elseif(CMAKE_BUILD_TYPE STREQUAL "RelWithDebInfo")
 else()
 	target_compile_options(Particle PUBLIC ${MSVC_RELEASE_FLAGS})
 endif()
+
+file(COPY "ariblk.ttf" DESTINATION ${CMAKE_BINARY_DIR})

@@ -10,198 +10,191 @@
 #include <iostream>
 #include <vector>
 
-class Cell {
-    public:
-        static std::vector<Cell> _cellList;
+struct Node {
+        Position from;
+        Position to;
+        Position accumulatedCenterOfMass;
+        double mass = 0;
 
-        constexpr Cell(const Position& from, const Position& to) :
-                _from(from),
-                _to(to) {
-        }
+        std::array<size_t, 8> children{0};
+        Particle* particle = nullptr;
 
-        constexpr void initializeChildren() {
-            if (_cellList.capacity() < (_cellList.size() + 8)) {
-                throw std::length_error("");
-            }
-
-            const Position half_cell((_to - _from) / 2);
-            const Position center(half_cell + _from);
-            const Position along_x(half_cell.x, 0.0, 0.0);
-            const Position along_y(0.0, half_cell.y, 0.0);
-            const Position along_z(0.0, 0.0, half_cell.z);
-
-            // Order important, index to find child is calculated
-            addChild<0>(_from, center);
-            addChild<1>(_from + along_x, center + along_x);
-            addChild<2>(_from + along_y, center + along_y);
-            addChild<3>(_from + along_x + along_y, center + along_x + along_y);
-            addChild<4>(_from + along_z, center + along_z);
-            addChild<5>(_from + along_x + along_z, center + along_x + along_z);
-            addChild<6>(_from + along_y + along_z, center + along_y + along_z);
-            addChild<7>(center, _to);
-        }
-
-        template <size_t index>
-        constexpr void addChild(const Position& from, const Position& to) {
-            _children[index] = _cellList.size();
-            _cellList.emplace_back(from, to);
-        }
-
-        Cell& getChild(const Position& pos) {
-            const Position relativeParticlePos = pos - _from;
-            const Vector3d childCellSize = (_to - _from) / 2;
-            const Position coords = (relativeParticlePos / childCellSize); // x, y, z [0;2[,[0;2[,[0;2[
-            const int index = static_cast<int>(coords.x) + (static_cast<int>(coords.y) * 2) + (static_cast<int>(coords.z) * 4);
-            Cell& c = _cellList[_children[index]];
-#if defined(_DEBUG)
-            if (!c.isInCell(pos)) {
-                throw std::runtime_error("Particle not in Cell");
-            }
-#endif
-            return c;
-        }
-
-        constexpr Position centerOfMass() const {
-            return _accumulatedCenterOfMass / _mass;
-        }
-
-        constexpr bool isLeaf() const {
-            return _children.front() == 0;
-        }
-
-        constexpr void insert(Particle& p) {
-#if defined(_DEBUG)
-            if (!isInCell(p.position)) {
-                throw std::runtime_error("Particle not in Cell");
-            }
-#endif
-            if (isLeaf()) {
-                if (_particle == nullptr) {
-                    _particle = &p;
-                } else {
-                    initializeChildren();
-
-                    getChild(_particle->position).insert(*_particle);
-                    getChild(p.position).insert(p);
-
-                    _mass = p.mass + _particle->mass;
-                    _accumulatedCenterOfMass = p.toForce() + _particle->toForce();
-                    _particle = nullptr;
-                }
-            } else {
-                getChild(p.position).insert(p);
-
-                _mass += p.mass;
-                _accumulatedCenterOfMass += p.toForce();
-            }
+        constexpr Node(const Position& from, const Position& to) :
+                from(from),
+                to(to) {
         }
 
         constexpr double influence(const Position& p) const {
-            // return (_to.x - _from.x) / math::distance(centerOfMass(), p);
-            return (_to.x - _from.x) * math::invsqrtQuake((centerOfMass() - p).lengthSquared()); // worth?
+            // return (to.x - from.x) / math::distance(centerOfMass(), p);
+            return (to.x - from.x) * math::invsqrtQuake((centerOfMass() - p).lengthSquared()); // worth?
         }
 
-        constexpr void calculateAcceleration(Particle& p) const {
-            if (_mass == 0.0) {
-                return;
-            }
-
-            if (isLeaf()) {
-                if (&p != _particle) {
-                    const double distance = math::distance(p.position, _particle->position);
-
-                    if (distance > (p.mass + _particle->mass)) {
-                        p.accelerate(_particle->position, _particle->mass);
-                    } else {
-                        collide(p, *_particle);
-                        // re-insert particle?
-                    }
-                }
-            } else if (influence(p.position) < _influenceThreshold) {
-                p.accelerate(centerOfMass(), _mass);
-            } else {
-                for (size_t index : _children) {
-                    _cellList[index].calculateAcceleration(p);
-                }
-            }
+        constexpr Position centerOfMass() const {
+            return accumulatedCenterOfMass / mass;
         }
 
-        constexpr bool isInCell(const Position& pos) const {
-            const bool in_x = (_from.x < pos.x) and (pos.x < _to.x);
-            const bool in_y = (_from.y < pos.y) and (pos.y < _to.y);
-            const bool in_z = (_from.z < pos.z) and (pos.z < _to.z);
-            return in_x and in_y and in_z;
+        constexpr bool isLeaf() const {
+            return children.front() == 0;
         }
 
         std::string toString() const {
-            return std::format("[From: {}, To: {}, CenterOfMass: {}, Mass: {}]", _from.toString(), _to.toString(), centerOfMass().toString(), _mass);
+            return std::format("[From: {}, To: {}, CenterOfMass: {}, Mass: {}]", from.toString(), to.toString(), centerOfMass().toString(), mass);
+        }
+
+        constexpr bool isInCell(const Position& pos) const {
+            const bool in_x = (from.x < pos.x) and (pos.x < to.x);
+            const bool in_y = (from.y < pos.y) and (pos.y < to.y);
+            const bool in_z = (from.z < pos.z) and (pos.z < to.z);
+            return in_x and in_y and in_z;
+        }
+
+        size_t getChildIndex(const Position& pos) {
+            const Position relativeParticlePos = pos - from;
+            const Vector3d childCellSize = (to - from) / 2;
+            const Position coords = (relativeParticlePos / childCellSize); // x, y, z [0;2[,[0;2[,[0;2[
+            const int index = static_cast<int>(coords.x) + (static_cast<int>(coords.y) * 2) + (static_cast<int>(coords.z) * 4);
+            const size_t childIndex = children[index];
+#if defined(_DEBUG)
+            if (!isInCell(pos)) {
+                throw std::runtime_error("Particle not in Cell");
+            }
+#endif
+            return childIndex;
+        }
+};
+
+class BarnesHut {
+        static constexpr double influenceThreshold = 0.5; // 0.5 is common value across multiple papers
+        static constexpr bool withCollision = true;
+
+    public:
+        BarnesHut(const Position& from, const Position& to) {
+            _nodes.emplace_back(from, to);
+        }
+
+        constexpr void insertParticles(std::vector<Particle>& particles) {
+            if (_nodes.capacity() < (particles.size() * 2)) {
+                _nodes.reserve(particles.size() * 2);
+            }
+
+            for (Particle& p : particles) {
+#if defined(_DEBUG)
+                if (!_nodes[0].isInCell(p.position)) {
+                    throw std::runtime_error(std::format("Particle not in OctTree: {}", p.position.toString()));
+                }
+#endif
+                insert(0, p);
+            }
+        }
+
+        constexpr void calculateAcceleration(Particle& p) const {
+            calculateAcceleration(0, p);
         }
 
         void resetCalculation() {
-            _accumulatedCenterOfMass = Position(0.0, 0.0, 0.0);
-            _mass = 0.0;
-            _particle = nullptr;
+            _nodes.erase(_nodes.begin() + 1, _nodes.end());
+            _nodes.front().accumulatedCenterOfMass = Position(0.0, 0.0, 0.0);
+            _nodes.front().accumulatedCenterOfMass = Position(0.0, 0.0, 0.0);
+            _nodes.front().mass = 0.0;
+            _nodes.front().particle = nullptr;
 
-            for (size_t& index : _children) {
+            for (size_t& index : _nodes.front().children) {
                 index = 0;
             }
         }
 
     private:
-        static constexpr double _influenceThreshold = 0.5; // 0.5 is common value across multiple papers
+        std::vector<Node> _nodes;
 
-        Position _from;
-        Position _to;
-        Position _accumulatedCenterOfMass;
-        double _mass = 0;
-
-        std::array<size_t, 8> _children{0};
-        Particle* _particle = nullptr;
-};
-
-class BarnesHut {
-    public:
-        BarnesHut(const Position& from, const Position& to) :
-                _cell(from, to) {
-        }
-
-        constexpr void insertParticles(std::vector<Particle>& particles) {
-            if (Cell::_cellList.capacity() < (particles.size() * 2)) {
-                Cell::_cellList.reserve(particles.size() * 2);
-            }
-
-            for (Particle& p : particles) {
-                if (Cell::_cellList.capacity() < (Cell::_cellList.size() + 8)) {
-                    reserveCellSpace();
-                }
+        constexpr void insert(size_t index, Particle& p) {
+            Node* currentNode = &_nodes[index];
 
 #if defined(_DEBUG)
-                if (!_cell.isInCell(p.position)) {
-                    throw std::runtime_error(std::format("Particle not in OctTree: {}", p.position.toString()));
-                }
+            if (!currentNode->isInCell(p.position)) {
+                throw std::runtime_error("Particle not in Cell");
+            }
 #endif
-                try {
-                    _cell.insert(p);
-                } catch (std::length_error&) {
-                    reserveCellSpace();
-                    _cell.insert(p);
+            if (currentNode->isLeaf()) {
+                if (currentNode->particle == nullptr) {
+                    currentNode->particle = &p;
+                } else {
+                    initializeChildrenForNode(index);
+                    currentNode = &_nodes[index];
+
+                    const size_t firstChildIndex = currentNode->getChildIndex(currentNode->particle->position);
+                    const size_t secondChildIndex = currentNode->getChildIndex(p.position);
+
+                    insert(firstChildIndex, *_nodes[index].particle);
+                    insert(secondChildIndex, p);
+                    currentNode = &_nodes[index];
+
+                    currentNode->mass = p.mass + currentNode->particle->mass;
+                    currentNode->accumulatedCenterOfMass = p.toForce() + currentNode->particle->toForce();
+                    currentNode->particle = nullptr;
+                }
+            } else {
+                const size_t childIndex = currentNode->getChildIndex(p.position);
+                currentNode->mass += p.mass;
+                currentNode->accumulatedCenterOfMass += p.toForce();
+
+                insert(childIndex, p);
+            }
+        }
+
+        constexpr void calculateAcceleration(size_t index, Particle& p) const {
+            const Node& currentNode = _nodes[index];
+
+            if (currentNode.mass == 0.0) {
+                return;
+            }
+
+            if (currentNode.isLeaf()) {
+                if (&p != currentNode.particle) {
+                    const double distance = math::distance(p.position, currentNode.particle->position);
+
+                    if (distance > (p.mass + currentNode.particle->mass)) {
+                        p.accelerate(currentNode.particle->position, currentNode.particle->mass);
+                    } else {
+                        if constexpr (withCollision) {
+                            collide(p, *currentNode.particle);
+                            // re-insert particle?
+                        }
+                    }
+                }
+            } else if (currentNode.influence(p.position) < influenceThreshold) {
+                p.accelerate(currentNode.centerOfMass(), currentNode.mass);
+            } else {
+                for (size_t childIndex : currentNode.children) {
+                    calculateAcceleration(childIndex, p);
                 }
             }
         }
 
-        constexpr void calculateAcceleration(Particle& p) const {
-            _cell.calculateAcceleration(p);
+        constexpr void initializeChildrenForNode(size_t index) {
+            const Position from = _nodes[index].from;
+            const Position to = _nodes[index].to;
+
+            const Position half_cell((to - from) / 2);
+            const Position center(half_cell + from);
+
+            const Position along_x(half_cell.x, 0.0, 0.0);
+            const Position along_y(0.0, half_cell.y, 0.0);
+            const Position along_z(0.0, 0.0, half_cell.z);
+
+            // Order important, index to find child is calculated
+            _nodes[index].children[0] = createNode(from, center);
+            _nodes[index].children[1] = createNode(from + along_x, center + along_x);
+            _nodes[index].children[2] = createNode(from + along_y, center + along_y);
+            _nodes[index].children[3] = createNode(from + along_x + along_y, center + along_x + along_y);
+            _nodes[index].children[4] = createNode(from + along_z, center + along_z);
+            _nodes[index].children[5] = createNode(from + along_x + along_z, center + along_x + along_z);
+            _nodes[index].children[6] = createNode(from + along_y + along_z, center + along_y + along_z);
+            _nodes[index].children[7] = createNode(center, to);
         }
 
-        void resetCalculation() {
-            Cell::_cellList.clear();
-            _cell.resetCalculation();
+        constexpr size_t createNode(const Position& from, const Position& to) {
+            const size_t childIndex = _nodes.size();
+            _nodes.emplace_back(from, to);
+            return childIndex;
         }
-
-        void reserveCellSpace() {
-            Cell::_cellList.reserve(Cell::_cellList.capacity() * 1.5);
-        }
-
-    private:
-        Cell _cell;
 };

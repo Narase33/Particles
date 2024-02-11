@@ -62,6 +62,10 @@ class Simulation {
             _particles.emplace_back(pos, acceleration);
         }
 
+        void setText(const std::string& text) {
+            _pic.setText(text);
+        }
+
     private:
         std::vector<Particle> _particles;
         BarnesHut _barnesHut;

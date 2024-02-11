@@ -12,6 +12,10 @@ class Picture {
                 _pixelBuffer(new sf::Uint8[_pixelsSize]),
                 _particleBuffer(new uint16_t[_size.x * _size.y]) {
             _tex.create(_size.x, _size.y);
+            _font.loadFromFile("ariblk.ttf");
+            _textField.setFont(_font);
+            _textField.setCharacterSize(20);
+            _textField.setFillColor(sf::Color::White);
         }
 
         void fill(Color color) {
@@ -65,6 +69,7 @@ class Picture {
             _tex.update(_pixelBuffer.get());
             _sprite.setTexture(_tex);
             target.draw(_sprite);
+            target.draw(_textField);
         }
 
         void addBlurr(const Vector2d& coord, uint8_t color[4]) {
@@ -97,6 +102,10 @@ class Picture {
             }
         }
 
+        void setText(const std::string& text) {
+            _textField.setString(text);
+        }
+
         bool isOutOfBounds(const Vector2d& pixel) const {
             return (pixel.x < 0) or (pixel.x >= _size.x) or (pixel.y < 0) or (pixel.y >= _size.y);
         }
@@ -111,6 +120,8 @@ class Picture {
         Vector2u _size;
         size_t _pixelsSize;
 
+        sf::Font _font;
+        sf::Text _textField;
         sf::Texture _tex;
         sf::Sprite _sprite;
         std::unique_ptr<sf::Uint8[]> _pixelBuffer;

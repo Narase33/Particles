@@ -9,7 +9,7 @@
 #include <random>
 
 void run_showcase() {
-    constexpr size_t particleCount = 20'000;
+    constexpr size_t particleCount = 1'000;
     constexpr uint16_t windowWidth = 1'000;
     constexpr uint16_t spawnWidth = windowWidth / 1;
 
@@ -29,14 +29,13 @@ void run_showcase() {
         sim.placeParticle(pos, Vector3d(0.0, 0.0, 0.0));
     }
     std::print(std::cout, "Placed {} particles\n", particleCount);
+    std::string text;
     while (true) {
         const auto startTime = std::chrono::high_resolution_clock::now();
-        // sim.step_bruteForce();
         sim.step_barnesHut();
         const auto endTime = std::chrono::high_resolution_clock::now();
         const auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(endTime - startTime);
-
-        std::cout << duration.count() << "ms\n";
+        sim.setText(std::to_string(duration.count()) + "ms");
         std::this_thread::sleep_for(std::chrono::milliseconds(20) - duration);
     }
 }
@@ -66,7 +65,6 @@ void run_benchmark() {
     std::chrono::milliseconds sum(0), min(std::chrono::milliseconds::max()), max(std::chrono::milliseconds::min());
     for (int i = 0; i < benchmarkRounds; i++) {
         const auto startTime = std::chrono::high_resolution_clock::now();
-        // sim.step_bruteForce();
         sim.step_barnesHut();
         const auto endTime = std::chrono::high_resolution_clock::now();
         const auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(endTime - startTime);
@@ -75,7 +73,7 @@ void run_benchmark() {
         max = std::max(max, duration);
         min = std::min(min, duration);
 
-        std::print(std::cout, "{}/{} {}\n", i, benchmarkRounds, duration);
+        sim.setText(std::format("{}/{} {}\n", i, benchmarkRounds, duration));
     }
 
     std::cout << "Finished!\n";
