@@ -8,7 +8,9 @@ class Camera {
     public:
         Camera(const Vector3d& displaySurface, const Vector2d offset, double fov) :
                 _displaySurface(displaySurface),
+                _displaySurface_org(displaySurface),
                 _offset(offset),
+                _offset_org(offset),
                 _fov(fov) {
         }
 
@@ -41,7 +43,10 @@ class Camera {
         }
 
         void zoom(double amount) {
-            _displaySurface.z += amount;
+            double newZ = _displaySurface.z + amount;
+            if (newZ > 0) {
+                _displaySurface.z = newZ;
+            }
         }
 
         Vector3d rotate_x_axis(double degree_x, Vector3d particle) const {
@@ -78,9 +83,17 @@ class Camera {
             _turn += direction;
         }
 
+        void reset() {
+            _displaySurface = _displaySurface_org;
+            _offset = _offset_org;
+            _turn = {};
+        }
+
     private:
         Vector3d _displaySurface;
+        Vector3d _displaySurface_org;
         Vector2d _offset;
+        Vector2d _offset_org;
         Vector2d _turn;
         double _fov;
 };

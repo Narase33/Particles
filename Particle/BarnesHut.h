@@ -42,9 +42,9 @@ struct Node {
         }
 
         constexpr bool isInCell(const Position& pos) const {
-            const bool in_x = (from.x < pos.x) and (pos.x < to.x);
-            const bool in_y = (from.y < pos.y) and (pos.y < to.y);
-            const bool in_z = (from.z < pos.z) and (pos.z < to.z);
+            const bool in_x = (from.x <= pos.x) and (pos.x < to.x);
+            const bool in_y = (from.y <= pos.y) and (pos.y < to.y);
+            const bool in_z = (from.z <= pos.z) and (pos.z < to.z);
             return in_x and in_y and in_z;
         }
 
@@ -78,16 +78,20 @@ class BarnesHut {
             }
 
             for (Particle& p : particles) {
-#if defined(_DEBUG)
-                if (!_nodes[0].isInCell(p.position)) {
-                    throw std::runtime_error(std::format("Particle not in OctTree: {}", p.position.toString()));
+                if (!p.enabled) {
+                    continue;
                 }
-#endif
-                insert(0, p);
+
+                if (_nodes[0].isInCell(p.position)) {
+                    insert(0, p);
+                }
             }
         }
 
         constexpr void calculateAcceleration(Particle& p) const {
+            if (!p.enabled) {
+                return;
+            }
             calculateAcceleration(0, p);
         }
 
@@ -124,7 +128,7 @@ class BarnesHut {
                     const size_t firstChildIndex = currentNode->getChildIndex(currentNode->particle->position);
                     const size_t secondChildIndex = currentNode->getChildIndex(p.position);
 
-                    insert(firstChildIndex, *_nodes[index].particle);
+                    insert(firstChildIndex, *currentNode->particle);
                     insert(secondChildIndex, p);
                     currentNode = &_nodes[index];
 
@@ -144,7 +148,7 @@ class BarnesHut {
         constexpr void calculateAcceleration(size_t index, Particle& p) const {
             const Node& currentNode = _nodes[index];
 
-            if (currentNode.mass == 0.0) {
+            if ((currentNode.mass == 0.0) and (currentNode.particle == nullptr)) {
                 return;
             }
 
@@ -156,7 +160,7 @@ class BarnesHut {
                         p.accelerate(currentNode.particle->position, currentNode.particle->mass);
                     } else {
                         if constexpr (withCollision) {
-                            collide(p, *currentNode.particle);
+                            p.collide(*currentNode.particle);
                             // re-insert particle?
                         }
                     }

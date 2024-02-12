@@ -1,12 +1,15 @@
 #pragma once
 
 #include "Vector.h"
+#include <iostream>
 
 class Particle {
     public:
         constexpr Particle(Position position, Vector3d speed) noexcept :
                 position(position),
                 speed(speed),
+                newSpeed(speed),
+                enabled(true),
                 mass(1.0) {
         }
 
@@ -15,6 +18,7 @@ class Particle {
         }
 
         constexpr void step() {
+            speed = newSpeed;
             position += speed;
         }
 
@@ -25,13 +29,23 @@ class Particle {
             const double force = (G * mass * mass_other) / (delta.x * delta.x + delta.y * delta.y + delta.z * delta.z + 1);
             const Vector3d acceleration = delta * force;
 
-            speed += acceleration;
+            newSpeed = newSpeed + acceleration;
 
 #if defined(_DEBUG)
-            if (std::isnan(speed.x) or std::isnan(speed.y) or std::isnan(speed.z)) {
+            if (std::isnan(newSpeed.x) or std::isnan(newSpeed.y) or std::isnan(newSpeed.z)) {
                 throw std::runtime_error("Is NAN");
             }
 #endif
+        }
+
+        void collide(const Particle& b) {
+            // https://exploratoria.github.io/exhibits/mechanics/elastic-collisions-in-3d/
+            const Vector3d normal = math::unitVector(position - b.position);
+            const Vector3d relativeVelocity = speed - b.speed;
+            const double dot = math::dot(relativeVelocity, normal);
+            const Vector3d normal2 = normal * dot;
+
+            newSpeed = newSpeed - normal2;
         }
 
         constexpr Position toForce() const {
@@ -39,11 +53,11 @@ class Particle {
         }
 
         Position position;
-        Vector3d speed;
+        Vector3d newSpeed;
         Vector3d spin;
         double mass;
-};
+        bool enabled;
 
-inline void collide(Particle&, Particle&) {
-    // TODO
-}
+    private:
+        Vector3d speed;
+};

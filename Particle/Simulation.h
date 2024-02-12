@@ -11,7 +11,7 @@ class Simulation {
                 _camera(Position(windowSize.x, windowSize.y, 600), Vector2d(0.0, 0.0), 90),
                 _window(sf::VideoMode(windowSize.x, windowSize.y), "Particle"),
                 _pic(Vector2u(windowSize.x, windowSize.y)),
-                _barnesHut(Position(-windowSize.x * 2, -windowSize.x * 2, -windowSize.x * 2), Position(windowSize.x * 2, windowSize.x * 2, windowSize.x * 2)) {
+                _barnesHut(Position(-windowSize.x * 4, -windowSize.x * 4, -windowSize.x * 4), Position(windowSize.x * 4, windowSize.x * 4, windowSize.x * 4)) {
             _window.setPosition({200, 5});
         }
 
@@ -20,12 +20,18 @@ class Simulation {
 
             _pic.reset();
 
-            std::for_each(std::execution::par_unseq, _particles.begin(), _particles.end(), [this](Particle& p) {
-                for (const Particle& other : _particles) {
-                    p.accelerate(other.position, other.mass);
-                }
-                p.step();
-            });
+            if (!_simPaused) {
+                std::for_each(_particles.begin(), _particles.end(), [this](Particle& p) {
+                    for (Particle& other : _particles) {
+                        p.accelerate(other.position, other.mass);
+
+                        if (math::distance(p.position, other.position) < (p.mass + other.mass)) {
+                            p.collide(other);
+                        }
+                    }
+                    p.step();
+                });
+            }
 
             for (const Particle& p : _particles) {
                 _pic.setParticle(_camera.project(p.position));
@@ -44,10 +50,15 @@ class Simulation {
             _barnesHut.resetCalculation();
             _barnesHut.insertParticles(_particles);
 
-            std::for_each(std::execution::par_unseq, _particles.begin(), _particles.end(), [this](Particle& p) {
-                _barnesHut.calculateAcceleration(p);
-                p.step();
-            });
+            if (!_simPaused) {
+                std::for_each(std::execution::par_unseq, _particles.begin(), _particles.end(), [this](Particle& p) {
+                    _barnesHut.calculateAcceleration(p);
+                });
+
+                std::for_each(std::execution::par_unseq, _particles.begin(), _particles.end(), [this](Particle& p) {
+                    p.step();
+                });
+            }
 
             for (const Particle& p : _particles) {
                 _pic.setParticle(_camera.project(p.position));
@@ -60,6 +71,10 @@ class Simulation {
 
         void placeParticle(const Position& pos, const Vector3d& acceleration) {
             _particles.emplace_back(pos, acceleration);
+        }
+
+        void placeParticle(const Particle& p) {
+            _particles.push_back(p);
         }
 
         void setText(const std::string& text) {
@@ -76,6 +91,7 @@ class Simulation {
 
         bool _inMouseMove = false;
         bool _inMouseRotation = false;
+        bool _simPaused = false;
 
         void handleEvents() {
             static Vector2d oldMousePosition;
@@ -87,6 +103,14 @@ class Simulation {
                         _window.close();
                         std::exit(0);
                         return;
+                    case sf::Event::KeyPressed:
+                        if (ev.key.code == sf::Keyboard::Space) {
+                            _simPaused = !_simPaused;
+                        }
+                        if (ev.key.code == sf::Keyboard::BackSpace) {
+                            _camera.reset();
+                        }
+                        break;
                     case sf::Event::MouseButtonPressed:
                         if (ev.mouseButton.button == sf::Mouse::Right) {
                             const auto& mousePos = sf::Mouse::getPosition(_window);
