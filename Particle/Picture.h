@@ -9,8 +9,8 @@ class Picture {
         Picture(Vector2u size) :
                 _size(size),
                 _pixelsSize(_size.x * _size.y * 4),
-                _pixelBuffer(new sf::Uint8[_pixelsSize]),
-                _particleBuffer(new uint16_t[_size.x * _size.y]) {
+                _pixelBuffer(std::make_unique<sf::Uint8[]>(_pixelsSize)),
+                _particleBuffer(std::make_unique<uint16_t[]>(_size.x * _size.y)) {
             _tex.create(_size.x, _size.y);
             _font.loadFromFile("ariblk.ttf");
             _textField.setFont(_font);
@@ -27,7 +27,7 @@ class Picture {
             }
         }
 
-        void reset() {
+        void reset() const {
             for (size_t i = 0; i < _pixelsSize; i++) {
                 _pixelBuffer[i] = 0;
             }
@@ -37,7 +37,7 @@ class Picture {
             }
         }
 
-        void setParticle(const Vector2d& coord) {
+        void setParticle(const Vector2d& coord) const {
             if (isOutOfBounds(coord)) {
                 return;
             }
@@ -45,6 +45,25 @@ class Picture {
             const size_t index = to1dim(coord);
             if (_particleBuffer[index] < std::numeric_limits<uint8_t>::max()) {
                 _particleBuffer[index]++;
+            }
+        }
+
+        void setPixel(const Vector2d& coord, const Color& color) const {
+            if (isOutOfBounds(coord)) {
+                return;
+            }
+
+            _pixelBuffer[to1dim(coord) * 4 + 0] = color.x;
+            _pixelBuffer[to1dim(coord) * 4 + 1] = color.y;
+            _pixelBuffer[to1dim(coord) * 4 + 2] = color.z;
+            _pixelBuffer[to1dim(coord) * 4 + 3] = 255;
+        }
+
+        void setPixelLine(const Vector2d& from, const Vector2d& to, const Color& color) const {
+            for (int x = from.x; x < to.x; x++) {
+                for (int y = from.y; y < to.y; y++) {
+                    setPixel(Vector2d(x, y), color);
+                }
             }
         }
 

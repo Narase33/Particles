@@ -66,7 +66,7 @@ set(MSVC_RELDEBUG_FLAGS
 )
 
 add_subdirectory("libs/SFML-2.5.1")
-add_executable (Particle "Particle/main.cpp" )
+add_executable (Particle "Particle/main.cpp"  "Particle/BlueWorld.h")
 
 target_link_libraries(Particle
 	PRIVATE

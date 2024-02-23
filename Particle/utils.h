@@ -1,14 +1,20 @@
 #pragma once
 
 #include "Vector.h"
+#include <numbers>
 
 namespace math {
-    constexpr double pi = 3.1415926535897932385;
-
-    inline constexpr double degreesToRadians(double degrees) {
-        return degrees * pi / 180.0;
+    constexpr double degreesToRadians(double degrees) {
+        return degrees * std::numbers::pi / 180.0;
     }
 
+    constexpr double radiansToDegrees(double rad) {
+        return rad * 180.0 / std::numbers::pi;
+    }
+
+    /*
+     * The "force" they generate
+     */
     template <typename T>
     constexpr double dot(const Vector3<T>& a, const Vector3<T>& b) {
         return a.x * b.x + a.y * b.y + a.z * b.z;
@@ -30,6 +36,18 @@ namespace math {
     template <typename T>
     constexpr T distance(const Vector3<T>& a, const Vector3<T>& b) {
         return (a - b).length();
+    }
+
+    template <typename T>
+    constexpr Vector3<T> normal(const Vector3<T>& a, const Vector3<T>& b) {
+        return unitVector(b - a);
+    }
+
+    template <typename T>
+    constexpr double angleBetween(const Vector3<T>& a, const Vector3<T>& b) {
+        const double dotProduct = dot(a, b);
+        const double length = a.length() * b.length();
+        return std::acos(dotProduct / length);
     }
 
     constexpr double invsqrtQuake(double y) {

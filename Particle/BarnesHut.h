@@ -54,11 +54,8 @@ struct Node {
             const Position coords = (relativeParticlePos / childCellSize); // x, y, z [0;2[,[0;2[,[0;2[
             const int index = static_cast<int>(coords.x) + (static_cast<int>(coords.y) * 2) + (static_cast<int>(coords.z) * 4);
             const size_t childIndex = children[index];
-#if defined(_DEBUG)
-            if (!isInCell(pos)) {
-                throw std::runtime_error("Particle not in Cell");
-            }
-#endif
+
+            assert(isInCell(pos));
             return childIndex;
         }
 };
@@ -78,18 +75,18 @@ class BarnesHut {
             }
 
             for (Particle& p : particles) {
-                if (!p.enabled) {
+                if (!p.isEnabled()) {
                     continue;
                 }
 
-                if (_nodes[0].isInCell(p.position)) {
+                if (_nodes[0].isInCell(p.position())) {
                     insert(0, p);
                 }
             }
         }
 
-        constexpr void calculateAcceleration(Particle& p) const {
-            if (!p.enabled) {
+        void calculateAcceleration(Particle& p) const {
+            if (!p.isEnabled()) {
                 return;
             }
             calculateAcceleration(0, p);
@@ -113,11 +110,7 @@ class BarnesHut {
         constexpr void insert(size_t index, Particle& p) {
             Node* currentNode = &_nodes[index];
 
-#if defined(_DEBUG)
-            if (!currentNode->isInCell(p.position)) {
-                throw std::runtime_error("Particle not in Cell");
-            }
-#endif
+            assert(currentNode->isInCell(p.position()));
             if (currentNode->isLeaf()) {
                 if (currentNode->particle == nullptr) {
                     currentNode->particle = &p;
@@ -125,20 +118,20 @@ class BarnesHut {
                     initializeChildrenForNode(index);
                     currentNode = &_nodes[index];
 
-                    const size_t firstChildIndex = currentNode->getChildIndex(currentNode->particle->position);
-                    const size_t secondChildIndex = currentNode->getChildIndex(p.position);
+                    const size_t firstChildIndex = currentNode->getChildIndex(currentNode->particle->position());
+                    const size_t secondChildIndex = currentNode->getChildIndex(p.position());
 
                     insert(firstChildIndex, *currentNode->particle);
                     insert(secondChildIndex, p);
                     currentNode = &_nodes[index];
 
-                    currentNode->mass = p.mass + currentNode->particle->mass;
+                    currentNode->mass = p.mass() + currentNode->particle->mass();
                     currentNode->accumulatedCenterOfMass = p.toForce() + currentNode->particle->toForce();
                     currentNode->particle = nullptr;
                 }
             } else {
-                const size_t childIndex = currentNode->getChildIndex(p.position);
-                currentNode->mass += p.mass;
+                const size_t childIndex = currentNode->getChildIndex(p.position());
+                currentNode->mass += p.mass();
                 currentNode->accumulatedCenterOfMass += p.toForce();
 
                 insert(childIndex, p);
@@ -154,10 +147,10 @@ class BarnesHut {
 
             if (currentNode.isLeaf()) {
                 if (&p != currentNode.particle) {
-                    const double distance = math::distance(p.position, currentNode.particle->position);
+                    const double distance = math::distance(p.position(), currentNode.particle->position());
 
-                    if (distance > (p.mass + currentNode.particle->mass)) {
-                        p.accelerate(currentNode.particle->position, currentNode.particle->mass);
+                    if (distance > (p.mass() + currentNode.particle->mass())) {
+                        p.accelerate(currentNode.particle->position(), currentNode.particle->mass());
                     } else {
                         if constexpr (withCollision) {
                             p.collide(*currentNode.particle);
@@ -165,7 +158,7 @@ class BarnesHut {
                         }
                     }
                 }
-            } else if (currentNode.influence(p.position) < influenceThreshold) {
+            } else if (currentNode.influence(p.position()) < influenceThreshold) {
                 p.accelerate(currentNode.centerOfMass(), currentNode.mass);
             } else {
                 for (size_t childIndex : currentNode.children) {

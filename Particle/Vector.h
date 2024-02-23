@@ -6,7 +6,8 @@
 
 template <typename T>
 struct Vector2 {
-        T x, y;
+        T x;
+        T y;
 
         constexpr Vector2() :
                 Vector2({}, {}) {
@@ -51,13 +52,18 @@ constexpr Vector2<T> operator+(const Vector2<T>& a, const Vector2<T>& b) {
 }
 
 template <typename T>
-constexpr Vector2<T> operator-(const Vector2<T>& a, const Vector2<T>& b) {
-    return {a.x - b.x, a.y - b.y};
+constexpr Vector2<T> operator*(const Vector2<T>& a, T b) {
+    return {a.x * b, a.y * b};
 }
 
 template <typename T>
-constexpr Vector2<T> operator*(const Vector2<T>& a, T b) {
-    return {a.x * b, a.y * b};
+constexpr Vector2<T> operator*(T a, const Vector2<T>& b) {
+    return {a * b.x, a * b.y};
+}
+
+template <typename T>
+constexpr Vector2<T> operator-(const Vector2<T>& a, const Vector2<T>& b) {
+    return {a.x - b.x, a.y - b.y};
 }
 
 template <typename T0, typename T1>
@@ -71,7 +77,9 @@ using Vector2u = Vector2<uint16_t>;
 
 template <typename T>
 struct Vector3 {
-        T x, y, z;
+        T x;
+        T y;
+        T z;
 
         constexpr Vector3() :
                 Vector3({}, {}, {}) {
@@ -165,6 +173,11 @@ constexpr Vector3<T0> operator/(const Vector3<T0>& a, T1 b) {
 template <typename T0>
 constexpr Vector3<T0> operator/(const Vector3<T0>& a, const Vector3<T0>& b) {
     return {a.x / b.x, a.y / b.y, a.z / b.z};
+}
+
+template <typename T0>
+constexpr Vector3<T0> operator*(const Vector3<T0>& a, const Vector3<T0>& b) {
+    return {a.x * b.x, a.y * b.y, a.z * b.z};
 }
 
 using Vector3i = Vector3<int>;
