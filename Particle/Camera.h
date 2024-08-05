@@ -2,29 +2,31 @@
 
 #include "Vector.h"
 #include "utils.h"
+
 #include <limits>
 
 class Camera {
     public:
         Camera(const Vector3d& displaySurface, const Vector2d offset, double fov) :
-                _displaySurface(displaySurface),
                 _displaySurface_org(displaySurface),
-                _offset(offset),
                 _offset_org(offset),
-                _fov(fov) {
+                _displaySurface(displaySurface),
+                _offset(offset),
+                _fov(math::degreesToRadians(fov)) {
         }
 
-        Vector2d project(Position particle) const {
-            particle = rotate_y_axis(_turn.y, particle);
-            particle = rotate_x_axis(_turn.x, particle);
+        Vector3d turn(const Position& particle) const {
+            return rotate_x_axis(_turn.x, rotate_y_axis(_turn.y, particle));
+        }
 
-            const double screenParticleDelta = _displaySurface.z - particle.z;
+        Vector2d project(const Position& turnedPosition) const {
+            const double screenParticleDelta = _displaySurface.z - turnedPosition.z;
             const double f = 1 / std::tan(_fov / 2);
             const double aspectRatio = _displaySurface.x / _displaySurface.y;
 
             Vector2d out;
-            out.x = (aspectRatio * f * particle.x) / screenParticleDelta;
-            out.y = (f * particle.y) / screenParticleDelta;
+            out.x = (aspectRatio * f * turnedPosition.x) / screenParticleDelta;
+            out.y = (f * turnedPosition.y) / screenParticleDelta;
 
             out += 1.0;
             out *= 0.5;
@@ -44,7 +46,7 @@ class Camera {
 
         void zoom(double amount) {
             double newZ = _displaySurface.z + amount;
-            if (newZ > 0) {
+            if (newZ < 0) {
                 _displaySurface.z = newZ;
             }
         }
@@ -89,11 +91,20 @@ class Camera {
             _turn = {};
         }
 
+        const Vector3d& getDisplaySurface() const {
+            return _displaySurface;
+        }
+
+        double getFov() const {
+            return _fov;
+        }
+
     private:
+        const Vector3d _displaySurface_org;
+        const Vector2d _offset_org;
+
         Vector3d _displaySurface;
-        Vector3d _displaySurface_org;
         Vector2d _offset;
-        Vector2d _offset_org;
         Vector2d _turn;
         double _fov;
 };

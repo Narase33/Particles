@@ -122,12 +122,27 @@ struct Vector3 {
             return *this;
         }
 
+        constexpr Vector3<T> operator-() const {
+            return *this * (-1.0);
+        }
+
         constexpr double lengthSquared() const noexcept {
             return x * x + y * y + z * z;
         }
 
         constexpr double length() const noexcept {
             return std::sqrt(lengthSquared());
+        }
+
+        constexpr double dot(const Vector3<T>& b) const noexcept {
+            return x * b.x + y * b.y + z * b.z;
+        }
+
+        constexpr Vector3<T> cross(const Vector3<T>& b) const noexcept {
+            const T _x = y * b.z - z * b.y;
+            const T _y = z * b.x - x * b.z;
+            const T _z = x * b.y - y * b.x;
+            return Vector3<T>(_x, _y, _z);
         }
 
         std::string toString() const {

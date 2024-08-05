@@ -149,7 +149,7 @@ class BarnesHut {
                 if (&p != currentNode.particle) {
                     const double distance = math::distance(p.position(), currentNode.particle->position());
 
-                    if (distance > (p.mass() + currentNode.particle->mass())) {
+                    if (distance > (p.radius() + currentNode.particle->radius())) {
                         p.accelerate(currentNode.particle->position(), currentNode.particle->mass());
                     } else {
                         if constexpr (withCollision) {

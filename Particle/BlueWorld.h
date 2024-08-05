@@ -58,9 +58,8 @@ class sfLine : public sf::Drawable {
 class BlueWorld {
     public:
         explicit BlueWorld(Vector2u windowSize) :
-                _camera(Position(windowSize.x, windowSize.y, 600), Vector2d(0.0, 0.0), 90),
                 _window(sf::VideoMode(windowSize.x, windowSize.y), "Particle - BlueWorld"),
-                _pic(Vector2u(windowSize.x, windowSize.y)) {
+                _pic(Vector2u(windowSize.x, windowSize.y), Camera(Position(windowSize.x, windowSize.y, 600), Vector2d(0.0, 0.0), 90)) {
             _window.setPosition({200, 5});
         }
 
@@ -70,11 +69,11 @@ class BlueWorld {
             _window.clear();
 
             for (const Pixel& p : _pixels) {
-                _pic.setPixel(_camera.project(p.pos), p.color);
+                _pic.setPixel(_pic.camera.project(p.pos), p.color);
             }
 
             for (const PixelLine& p : _pixelLines) {
-                sfLine line(_camera.project(p.from * Vector3d{1.0, -1.0, -1.0}), _camera.project(p.to * Vector3d{1.0, -1.0, -1.0}), p.color);
+                sfLine line(_pic.camera.project(p.from * Vector3d{1.0, -1.0, -1.0}), _pic.camera.project(p.to * Vector3d{1.0, -1.0, -1.0}), p.color);
 
                 _window.draw(line);
             }
@@ -91,7 +90,7 @@ class BlueWorld {
         }
 
         void addShort(const Vector3d& vec, const Color& color) {
-            add(PixelLine({0.0,0.0,0.0}, vec, color)); 
+            add(PixelLine({0.0, 0.0, 0.0}, vec, color));
         }
 
         void add(const Vector3d& vec) {
@@ -117,7 +116,6 @@ class BlueWorld {
         std::vector<Pixel> _pixels;
         std::vector<PixelLine> _pixelLines;
 
-        Camera _camera;
         sf::RenderWindow _window;
         Picture _pic;
 
@@ -136,7 +134,7 @@ class BlueWorld {
                         return;
                     case sf::Event::KeyPressed:
                         if (ev.key.code == sf::Keyboard::BackSpace) {
-                            _camera.reset();
+                            _pic.camera.reset();
                         }
                         break;
                     case sf::Event::MouseButtonPressed:
@@ -162,19 +160,19 @@ class BlueWorld {
                             const auto& mousePos = sf::Mouse::getPosition(_window);
                             const Vector2d newMousePosition(mousePos.x, mousePos.y);
                             const Vector2d deltaPos = newMousePosition - oldMousePosition;
-                            _camera.move(deltaPos);
+                            _pic.camera.move(deltaPos);
                             oldMousePosition = newMousePosition;
                         } else if (_inMouseRotation) {
                             const auto& mousePos = sf::Mouse::getPosition(_window);
                             const Vector2d newMousePosition(mousePos.x, mousePos.y);
                             const Vector2d deltaPos = newMousePosition - oldMousePosition;
-                            _camera.turn(Vector2d(deltaPos.y / -2, deltaPos.x / 2));
+                            _pic.camera.turn(Vector2d(deltaPos.y / -2, deltaPos.x / 2));
                             oldMousePosition = newMousePosition;
                         }
                         break;
                     case sf::Event::MouseWheelScrolled:
-                        const int factor = (ev.mouseWheel.x > 0) ? -1 : 1;
-                        _camera.zoom(100 * factor);
+                        const int factor = (ev.mouseWheel.x > 0) ? 1 : -1;
+                        _pic.camera.zoom(100 * factor);
                         return;
                 }
             }

@@ -10,9 +10,8 @@ class Simulation {
     public:
         explicit Simulation(Vector2u windowSize) :
                 _barnesHut(Position(-windowSize.x * 4, -windowSize.x * 4, -windowSize.x * 4), Position(windowSize.x * 4, windowSize.x * 4, windowSize.x * 4)),
-                _camera(Position(windowSize.x, windowSize.y, 600), Vector2d(0.0, 0.0), 90),
                 _window(sf::VideoMode(windowSize.x, windowSize.y), "Particle"),
-                _pic(Vector2u(windowSize.x, windowSize.y)) {
+                _pic(Vector2u(windowSize.x, windowSize.y), Camera(Position(windowSize.x, windowSize.y, -600), Vector2d(0.0, 0.0), 90)) {
             _window.setPosition({200, 5});
         }
 
@@ -24,18 +23,25 @@ class Simulation {
             if (!_simPaused) {
                 std::ranges::for_each(_particles, [this](Particle& p) {
                     for (Particle& other : _particles) {
+                        if (&p == &other) {
+                            continue;
+                        }
+
                         p.accelerate(other.position(), other.mass());
 
-                        if (math::distance(p.position(), other.position()) < (p.mass() + other.mass())) {
+                        if (math::distance(p.position(), other.position()) < (p.radius() + other.radius())) {
                             p.collide(other);
                         }
                     }
+                });
+
+                std::ranges::for_each(_particles, [this](Particle& p) {
                     p.step();
                 });
             }
 
             for (const Particle& p : _particles) {
-                _pic.setParticle(_camera.project(p.position()));
+                _pic.setParticle(p);
             }
 
             _window.clear();
@@ -56,20 +62,20 @@ class Simulation {
             _barnesHut.insertParticles(_particles);
 
             if (!_simPaused) {
-                std::for_each(std::execution::par_unseq, _particles.begin(), _particles.end(), [this](Particle& p) {
+                std::for_each(std::execution::seq, _particles.begin(), _particles.end(), [this](Particle& p) {
                     if (p.isEnabled()) {
                         _barnesHut.calculateAcceleration(p);
                     }
                 });
 
-                std::for_each(std::execution::par_unseq, _particles.begin(), _particles.end(), [](Particle& p) {
+                std::for_each(std::execution::seq, _particles.begin(), _particles.end(), [](Particle& p) {
                     p.step();
                 });
             }
 
             for (const Particle& p : _particles) {
                 if (p.isEnabled()) {
-                    _pic.setParticle(_camera.project(p.position()));
+                    _pic.setParticle(p);
                 }
             }
 
@@ -94,7 +100,6 @@ class Simulation {
         std::vector<Particle> _particles;
         BarnesHut _barnesHut;
 
-        Camera _camera;
         sf::RenderWindow _window;
         Picture _pic;
 
@@ -117,7 +122,7 @@ class Simulation {
                             _simPaused = !_simPaused;
                         }
                         if (ev.key.code == sf::Keyboard::BackSpace) {
-                            _camera.reset();
+                            _pic.camera.reset();
                         }
                         break;
                     case sf::Event::MouseButtonPressed:
@@ -143,20 +148,23 @@ class Simulation {
                             const auto& mousePos = sf::Mouse::getPosition(_window);
                             const Vector2d newMousePosition(mousePos.x, mousePos.y);
                             const Vector2d deltaPos = newMousePosition - oldMousePosition;
-                            _camera.move(deltaPos);
+                            _pic.camera.move(deltaPos);
                             oldMousePosition = newMousePosition;
                         } else if (_inMouseRotation) {
                             const auto& mousePos = sf::Mouse::getPosition(_window);
                             const Vector2d newMousePosition(mousePos.x, mousePos.y);
                             const Vector2d deltaPos = newMousePosition - oldMousePosition;
-                            _camera.turn(Vector2d(deltaPos.y / -2, deltaPos.x / 2));
+                            _pic.camera.turn(Vector2d(deltaPos.y / -2, deltaPos.x / 2));
                             oldMousePosition = newMousePosition;
                         }
                         break;
-                    case sf::Event::MouseWheelScrolled:
-                        const int factor = (ev.mouseWheel.x > 0) ? -1 : 1;
-                        _camera.zoom(100 * factor);
+                    case sf::Event::MouseWheelScrolled: {
+                        const int factor = (ev.mouseWheel.x > 0) ? 1 : -1;
+                        _pic.camera.zoom(100 * factor);
                         return;
+                    }
+                    default:
+                        break;
                 }
             }
         }

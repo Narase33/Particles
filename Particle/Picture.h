@@ -6,11 +6,14 @@
 
 class Picture {
     public:
-        Picture(Vector2u size) :
+        Camera camera;
+
+        Picture(Vector2u size, const Camera& camera) :
                 _size(size),
                 _pixelsSize(_size.x * _size.y * 4),
                 _pixelBuffer(std::make_unique<sf::Uint8[]>(_pixelsSize)),
-                _particleBuffer(std::make_unique<uint16_t[]>(_size.x * _size.y)) {
+                _particleBuffer(std::make_unique<uint16_t[]>(_size.x * _size.y)),
+                camera(camera) {
             _tex.create(_size.x, _size.y);
             _font.loadFromFile("ariblk.ttf");
             _textField.setFont(_font);
@@ -37,14 +40,46 @@ class Picture {
             }
         }
 
-        void setParticle(const Vector2d& coord) const {
-            if (isOutOfBounds(coord)) {
+        double calculateRadius(const Position& turnedPosition, double radius) const {
+            const double screenParticleDelta = turnedPosition.z - camera.getDisplaySurface().z;
+            double out = radius * (500 / screenParticleDelta) * std::tan(camera.getFov() / 2);
+            return out;
+        }
+
+        void setParticle(const Particle& particle) const {
+            const Position turnedPosition = camera.turn(particle.position());
+            if (turnedPosition.z < camera.getDisplaySurface().z) {
                 return;
             }
 
-            const size_t index = to1dim(coord);
-            if (_particleBuffer[index] < std::numeric_limits<uint8_t>::max()) {
-                _particleBuffer[index]++;
+            const Vector2d particleProjectedPosition = camera.project(turnedPosition);
+
+            double projectedRadius = calculateRadius(turnedPosition, particle.radius());
+
+            if (projectedRadius <= 1) {
+                if (isOutOfBounds(particleProjectedPosition)) {
+                    return;
+                }
+
+                const size_t index = to1dim(particleProjectedPosition);
+                if (_particleBuffer[index] < std::numeric_limits<uint8_t>::max()) {
+                    _particleBuffer[index]++;
+                }
+            } else {
+                for (int y = -projectedRadius; y < projectedRadius; y++) {
+                    const int to_x = (int)std::sqrt(projectedRadius * projectedRadius - y * y);
+                    for (int x = -to_x; x < to_x; x++) {
+                        const Vector2d coord = Vector2d(x, y) + particleProjectedPosition;
+                        if (isOutOfBounds(coord)) {
+                            continue;
+                        }
+
+                        const size_t index = to1dim(coord);
+                        if (_particleBuffer[index] < std::numeric_limits<uint8_t>::max()) {
+                            _particleBuffer[index]++;
+                        }
+                    }
+                }
             }
         }
 

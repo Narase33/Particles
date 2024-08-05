@@ -32,8 +32,8 @@ void special_test_collide() {
 
     Simulation sim(Vector2u(windowWidth, windowWidth));
 
-    Particle a(Particle::Attributes{Position(10.0, 1.0, 0.0), Vector3d(-0.1, 0.0, 0.0), Vector3d(), 1});
-    Particle b(Particle::Attributes{Position(-10.0, -1.0, 0.0), Vector3d(-0.1, 0.0, 0.0), Vector3d(), 3});
+    Particle a(Position(10.0, 1.0, 0.0), Vector3d(-0.5, 0.0, 0.0), Vector3d(0, 0, 0), 10);
+    Particle b(Position(-10.0, -1.0, 0.0), Vector3d(0.5, 0.0, 0.0), Vector3d(), 10);
 
     sim.placeParticle(a);
     sim.placeParticle(b);
@@ -41,7 +41,7 @@ void special_test_collide() {
     std::string text;
     while (true) {
         const auto startTime = std::chrono::high_resolution_clock::now();
-        sim.step_barnesHut();
+        sim.step_bruteForce();
         const auto endTime = std::chrono::high_resolution_clock::now();
         const auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(endTime - startTime);
         sim.setText(std::format("{} FPS", 1000 / duration.count()));
@@ -54,8 +54,8 @@ void special_test_merge() {
 
     Simulation sim(Vector2u(windowWidth, windowWidth));
 
-    Particle a(Particle::Attributes{Position(10.0, 1.0, 0.0), Vector3d(0.1, 0.0, 0.0), Vector3d(), 1});
-    Particle b(Particle::Attributes{Position(-10.0, -1.0, 0.0), Vector3d(0.5, 0.0, 0.0), Vector3d(), 1});
+    Particle a(Position(20.0, 1.0, 0.0), Vector3d(0.1, 0.0, 0.0), Vector3d(), 5);
+    Particle b(Position(-10.0, -1.0, 0.0), Vector3d(0.5, 0.0, 0.0), Vector3d(), 10);
 
     sim.placeParticle(a);
     sim.placeParticle(b);
@@ -63,7 +63,7 @@ void special_test_merge() {
     std::string text;
     while (true) {
         const auto startTime = std::chrono::high_resolution_clock::now();
-        sim.step_barnesHut();
+        sim.step_bruteForce();
         const auto endTime = std::chrono::high_resolution_clock::now();
         const auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(endTime - startTime);
         sim.setText(std::format("{} FPS", 1000 / duration.count()));
@@ -71,8 +71,74 @@ void special_test_merge() {
     }
 }
 
+void special_test_spin() {
+    constexpr uint16_t windowWidth = 1'000;
+
+    Simulation sim(Vector2u(windowWidth, windowWidth));
+
+    Particle a(Position(5.0, 0.0, 0.0), Vector3d(0.0, 0.0, 0.0), Vector3d(0, 0, 1), 10);
+    Particle b(Position(-5.0, 0.0, 0.0), Vector3d(0.0, 0.0, 0.0), Vector3d(), 10);
+
+    sim.placeParticle(a);
+    sim.placeParticle(b);
+
+    std::string text;
+    while (true) {
+        const auto startTime = std::chrono::high_resolution_clock::now();
+        sim.step_bruteForce();
+        const auto endTime = std::chrono::high_resolution_clock::now();
+        const auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(endTime - startTime);
+        sim.setText(std::format("{} FPS", 1000 / duration.count()));
+        std::this_thread::sleep_for(std::chrono::milliseconds(200) - duration);
+    }
+}
+
+void run_showcase3() {
+    constexpr size_t particleCount = 100;
+    constexpr uint16_t windowWidth = 1'000;
+    constexpr uint16_t spawnWidth = windowWidth / 1;
+
+    Simulation sim(Vector2u(windowWidth, windowWidth));
+
+    std::mt19937 mt;
+    std::uniform_real_distribution<double> dice_window_x(-spawnWidth, spawnWidth);
+    std::uniform_real_distribution<double> dice_window_y(-spawnWidth, spawnWidth);
+
+    auto spawner = [&]() {
+        Position pos(dice_window_x(mt), dice_window_y(mt), 0);
+        while (std::hypot(pos.x, pos.y, pos.z) > (spawnWidth / 2.0)) {
+            pos = Position(dice_window_x(mt), dice_window_y(mt), 0);
+        }
+
+        sim.placeParticle(pos, Vector3d(0.0, 0.0, 0.0));
+    };
+
+    std::string text;
+    constexpr size_t particlesPerRound = 10;
+    for (int i = 0; i < particleCount;) {
+        const auto startTime = std::chrono::high_resolution_clock::now();
+        for (int j = 0; j < particlesPerRound; j++, i++) {
+            spawner();
+        }
+        sim.step_bruteForce();
+        const auto endTime = std::chrono::high_resolution_clock::now();
+        const auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(endTime - startTime);
+        sim.setText(std::format("{} particle, {}ms", i, duration.count()));
+        std::this_thread::sleep_for(std::chrono::milliseconds(20) - duration);
+    }
+
+    while (true) {
+        const auto startTime = std::chrono::high_resolution_clock::now();
+        sim.step_bruteForce();
+        const auto endTime = std::chrono::high_resolution_clock::now();
+        const auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(endTime - startTime);
+        sim.setText(std::format("{} particle, {}ms", particleCount, duration.count()));
+        std::this_thread::sleep_for(std::chrono::milliseconds(20) - duration);
+    }
+}
+
 void run_showcase2() {
-    constexpr size_t particleCount = 10'000;
+    constexpr size_t particleCount = 1'000;
     constexpr uint16_t windowWidth = 1'000;
     constexpr uint16_t spawnWidth = windowWidth / 1;
 
@@ -99,7 +165,7 @@ void run_showcase2() {
         for (int j = 0; j < particlesPerRound; j++, i++) {
             spawner();
         }
-        sim.step_barnesHut();
+        sim.step_bruteForce();
         const auto endTime = std::chrono::high_resolution_clock::now();
         const auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(endTime - startTime);
         sim.setText(std::format("{} particle, {}ms", i, duration.count()));
@@ -108,7 +174,7 @@ void run_showcase2() {
 
     while (true) {
         const auto startTime = std::chrono::high_resolution_clock::now();
-        sim.step_barnesHut();
+        sim.step_bruteForce();
         const auto endTime = std::chrono::high_resolution_clock::now();
         const auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(endTime - startTime);
         sim.setText(std::format("{} particle, {}ms", particleCount, duration.count()));
@@ -140,7 +206,7 @@ void run_showcase() {
     std::string text;
     while (true) {
         const auto startTime = std::chrono::high_resolution_clock::now();
-        sim.step_barnesHut();
+        sim.step_bruteForce();
         const auto endTime = std::chrono::high_resolution_clock::now();
         const auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(endTime - startTime);
         sim.setText(std::format("{} FPS", 1000 / duration.count()));
@@ -175,7 +241,7 @@ void run_benchmark() {
     std::chrono::milliseconds max(std::chrono::milliseconds::min());
     for (int i = 0; i < benchmarkRounds; i++) {
         const auto startTime = std::chrono::high_resolution_clock::now();
-        sim.step_barnesHut();
+        sim.step_bruteForce();
         const auto endTime = std::chrono::high_resolution_clock::now();
         const auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(endTime - startTime);
 
@@ -197,9 +263,11 @@ void run_benchmark() {
 int main() {
     // pixelTest();
     // special_test_merge();
-    // special_test_collide();
-    //   run_benchmark();
-    run_showcase2();
+    special_test_collide();
+    // special_test_spin();
+    // run_benchmark();
+    // run_showcase2();
+    // run_showcase3();
 }
 
 /*
